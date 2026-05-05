@@ -9,6 +9,7 @@ from pathlib import Path
 
 import numpy as np
 
+from .analysis import load_cliffs, render_findings
 from .ecps_sweep import (
     DEFAULT_EARNINGS_LEVELS,
     run_ecps_sweep,
@@ -62,3 +63,27 @@ def sweep_population_cli() -> None:
         elapsed,
         elapsed / max(n_levels, 1),
     )
+
+
+def analyze_cli() -> None:
+    """Render a markdown findings document from a saved sweep."""
+    _setup_logging()
+    p = argparse.ArgumentParser(description="Summarise sweep results into findings.md")
+    p.add_argument(
+        "--prefix",
+        type=Path,
+        required=True,
+        help="Path prefix for the saved sweep (matching --output of sweep-population)",
+    )
+    p.add_argument(
+        "--output",
+        type=Path,
+        default=Path("results/findings.md"),
+        help="Where to write the markdown findings.",
+    )
+    args = p.parse_args()
+
+    cliffs = load_cliffs(args.prefix)
+    args.output.parent.mkdir(parents=True, exist_ok=True)
+    render_findings(cliffs, args.output)
+    logging.info("Wrote findings to %s", args.output)

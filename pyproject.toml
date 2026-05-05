@@ -39,6 +39,7 @@ dev = [
 
 [project.scripts]
 sweep-population = "us_cliff_survey.cli:sweep_population_cli"
+cliff-analyze = "us_cliff_survey.cli:analyze_cli"
 
 [tool.setuptools.packages.find]
 where = ["src"]
