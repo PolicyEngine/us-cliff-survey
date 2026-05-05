@@ -7,9 +7,8 @@ from pathlib import Path
 from unittest.mock import patch
 
 import numpy as np
-import pytest
-
 import pandas as pd
+import pytest
 
 from us_cliff_survey import cli, ecps_sweep
 
