@@ -1,16 +1,19 @@
 """ECPS-with-axes sweep.
 
-For each tax-unit head in the Enhanced CPS, sweep their employment_income
-from $0 up to $30M while keeping every other variable (state, dependents,
-itemized deductions, benefit configuration, spouse earnings, etc.) at the
-ECPS-recorded value. Compute household_net_income at each earnings level
-and detect cliffs per household.
+For each Enhanced CPS household, identify a single target person — the
+highest baseline earner, with ties broken in favour of tax-unit heads —
+and sweep that one person's employment_income from $0 to $30M while
+keeping every other person's earnings and every household-level
+configuration (state, dependents, itemized deductions, benefits, spouse
+earnings) at the ECPS-recorded value. Compute household_net_income at
+each earnings level and detect cliffs per household.
 
 Implementation: a single Microsimulation loop over earnings levels.
-At each level E, override employment_income to E for every tax-unit head
-while leaving non-head members' earnings at baseline. One Microsimulation
-calculate per level. The output is a [household × earnings_level] matrix
-of household_net_income, on which cliff detection runs row-wise.
+At each level E, override employment_income to E for the target person
+in each household while leaving everyone else (including non-target
+tax-unit heads) at baseline. One Microsimulation calculate per level.
+The output is a [household × earnings_level] matrix of
+household_net_income, on which cliff detection runs row-wise.
 
 Why this works
 --------------
@@ -20,6 +23,9 @@ Why this works
   configurations.
 - The full earnings range $0–$30M ensures we cover the high-income tail
   (e.g. NY's $25M supplemental-tax recapture).
+- Sweeping only one person avoids the multi-tax-unit composite effect:
+  a multi-TU household sees its cliff once, at one tax unit's threshold,
+  not magnified across every head.
 """
 
 from __future__ import annotations
@@ -95,12 +101,45 @@ class SweepOutput:
         return pd.DataFrame(rows)
 
 
-def _override_head_earnings(
-    baseline_emp: np.ndarray, is_head: np.ndarray, earnings: float
+def _identify_target_person(
+    baseline_emp: np.ndarray,
+    is_head: np.ndarray,
+    person_hh_id: np.ndarray,
 ) -> np.ndarray:
-    """Replace head-of-tax-unit employment_income with `earnings`; leave others as baseline."""
+    """Mark exactly one target person per household.
+
+    Selection rule: highest baseline employment_income. Ties broken in
+    favour of tax-unit heads, then the lowest person index. If no one in
+    the household earns and nobody is flagged as a head, the first person
+    in the household becomes the target.
+    """
+    n = len(baseline_emp)
+    df = pd.DataFrame(
+        {
+            "hh": np.asarray(person_hh_id),
+            "emp": np.asarray(baseline_emp, dtype=float),
+            "is_head": np.asarray(is_head).astype(int),
+            "pidx": np.arange(n),
+        }
+    )
+    # Sort each household so the target lands first: emp DESC, head DESC, pidx ASC.
+    df_sorted = df.sort_values(
+        by=["hh", "emp", "is_head", "pidx"],
+        ascending=[True, False, False, True],
+        kind="stable",
+    )
+    target_pidx = df_sorted.groupby("hh", sort=False)["pidx"].first().to_numpy()
+    out = np.zeros(n, dtype=bool)
+    out[target_pidx] = True
+    return out
+
+
+def _override_target_earnings(
+    baseline_emp: np.ndarray, is_target: np.ndarray, earnings: float
+) -> np.ndarray:
+    """Replace the target person's employment_income with `earnings`."""
     out = np.array(baseline_emp, dtype=float, copy=True)
-    out[is_head.astype(bool)] = earnings
+    out[is_target.astype(bool)] = earnings
     return out
 
 
@@ -115,15 +154,18 @@ def run_ecps_sweep(
     if earnings_levels is None:
         earnings_levels = DEFAULT_EARNINGS_LEVELS
 
-    # Baseline once — to read demographics and locate heads. state_code
-    # and household_weight are natively household-level so we omit map_to.
+    # Baseline once — read demographics, locate heads, identify target person.
+    # state_code and household_weight are natively household-level so we omit map_to.
     baseline = Microsimulation()
     baseline_emp = np.asarray(baseline.calculate("employment_income", period=year))
     is_head = np.asarray(baseline.calculate("is_tax_unit_head", period=year)).astype(
         bool
     )
+    person_hh_id = np.asarray(baseline.calculate("person_household_id", period=year))
     hh_weight = np.asarray(baseline.calculate("household_weight", period=year))
     state_code = np.asarray(baseline.calculate("state_code", period=year))
+
+    is_target = _identify_target_person(baseline_emp, is_head, person_hh_id)
 
     n_hh = len(hh_weight)
     n_levels = len(earnings_levels)
@@ -142,7 +184,7 @@ def run_ecps_sweep(
 
     for i, earnings in iterator:
         sim = Microsimulation()
-        new_emp = _override_head_earnings(baseline_emp, is_head, float(earnings))
+        new_emp = _override_target_earnings(baseline_emp, is_target, float(earnings))
         sim.set_input("employment_income", year, new_emp)
         ni = np.asarray(
             sim.calculate("household_net_income", period=year, map_to="household")

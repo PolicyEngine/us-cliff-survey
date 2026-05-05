@@ -16,7 +16,8 @@ import pytest
 
 from us_cliff_survey.ecps_sweep import (
     SweepOutput,
-    _override_head_earnings,
+    _identify_target_person,
+    _override_target_earnings,
     run_ecps_sweep,
 )
 
@@ -36,58 +37,119 @@ class _FakeMicrosim:
     states: tuple[str, ...] = ("CA", "NY", "TX")
 
     def __post_init__(self) -> None:
-        self._head_earnings = 0.0
+        self._target_earnings = 0.0
         # baseline_emp: each person earns 50_000; each household has 2 persons.
         self._baseline_emp = np.full(self.n_persons, 50_000.0)
         self._is_head = np.array([True, False] * self.n_households)
+        self._person_hh_id = np.repeat(np.arange(self.n_households), 2)
 
     def calculate(self, var: str, period: int = 2026, map_to: str | None = None):
         if var == "employment_income":
             return self._baseline_emp
         if var == "is_tax_unit_head":
             return self._is_head
+        if var == "person_household_id":
+            return self._person_hh_id
         if var == "household_weight":
             return np.full(self.n_households, 100.0)
         if var == "state_code":
             return np.array(self.states)
         if var == "household_net_income":
-            earnings = self._head_earnings
-            base = earnings * 0.7  # 70% net of head's earnings
+            earnings = self._target_earnings
+            base = earnings * 0.7  # 70% net of target's earnings
             cliff = 5_000.0 if earnings > 100_000 else 0.0
             return np.full(self.n_households, base - cliff + 10_000.0)
         if var == "income_tax":
-            return np.full(self.n_households, max(0.0, self._head_earnings * 0.2))
+            return np.full(self.n_households, max(0.0, self._target_earnings * 0.2))
         if var == "state_income_tax":
-            return np.full(self.n_households, max(0.0, self._head_earnings * 0.05))
+            return np.full(self.n_households, max(0.0, self._target_earnings * 0.05))
         raise NotImplementedError(f"unmocked variable: {var}")
 
     def set_input(self, var: str, period: int, values: np.ndarray) -> None:
         if var != "employment_income":
             raise NotImplementedError(f"only employment_income mocked, got {var}")
-        # Capture head earnings so subsequent calculate() returns the right curve.
-        head_values = np.asarray(values)[self._is_head]
-        # All heads receive the same swept value in the loop, so all entries match.
-        if not np.allclose(head_values, head_values[0]):
-            raise AssertionError("expected all heads to have the same earnings")
-        self._head_earnings = float(head_values[0])
+        # Capture the swept value: the target person of each household
+        # receives the same earnings level at each iteration.
+        values = np.asarray(values)
+        # The targets are the 'is_head' persons here (each household has one
+        # head and one non-head; both earn $50K baseline so highest-earner
+        # ties go to the head).
+        target_values = values[self._is_head]
+        if not np.allclose(target_values, target_values[0]):
+            raise AssertionError("expected all targets to have the same earnings")
+        self._target_earnings = float(target_values[0])
 
 
-class TestOverrideHeadEarnings:
-    def test_only_heads_change(self) -> None:
+class TestIdentifyTargetPerson:
+    """One target per household. Highest baseline earner wins; ties broken
+    in favour of tax-unit heads, then person index."""
+
+    def test_single_household_picks_only_person(self) -> None:
+        baseline = np.array([50_000.0])
+        is_head = np.array([True])
+        person_hh = np.array([0])
+        target = _identify_target_person(baseline, is_head, person_hh)
+        np.testing.assert_array_equal(target, [True])
+
+    def test_picks_highest_earner_per_household(self) -> None:
+        baseline = np.array([10_000.0, 80_000.0, 0.0])
+        is_head = np.array([True, False, False])
+        person_hh = np.array([0, 0, 0])
+        target = _identify_target_person(baseline, is_head, person_hh)
+        np.testing.assert_array_equal(target, [False, True, False])
+
+    def test_ties_resolved_in_favour_of_head(self) -> None:
+        baseline = np.array([50_000.0, 50_000.0])
+        is_head = np.array([False, True])
+        person_hh = np.array([0, 0])
+        target = _identify_target_person(baseline, is_head, person_hh)
+        # Both have equal earnings; head wins.
+        np.testing.assert_array_equal(target, [False, True])
+
+    def test_zero_earnings_falls_back_to_head(self) -> None:
+        baseline = np.array([0.0, 0.0, 0.0])
+        is_head = np.array([False, True, False])
+        person_hh = np.array([0, 0, 0])
+        target = _identify_target_person(baseline, is_head, person_hh)
+        np.testing.assert_array_equal(target, [False, True, False])
+
+    def test_no_head_no_earnings_falls_back_to_first_person(self) -> None:
+        baseline = np.array([0.0, 0.0])
+        is_head = np.array([False, False])
+        person_hh = np.array([0, 0])
+        target = _identify_target_person(baseline, is_head, person_hh)
+        np.testing.assert_array_equal(target, [True, False])
+
+    def test_exactly_one_target_per_household(self) -> None:
+        # 3 households, 6 people total, multiple heads in some.
+        baseline = np.array([50_000.0, 0.0, 80_000.0, 60_000.0, 0.0, 90_000.0])
+        is_head = np.array([True, False, True, True, True, False])
+        person_hh = np.array([0, 0, 1, 1, 2, 2])
+        target = _identify_target_person(baseline, is_head, person_hh)
+        # HH 0: person 0 highest earner. HH 1: person 2 ($80K vs $60K).
+        # HH 2: person 5 highest earner.
+        np.testing.assert_array_equal(target, [True, False, True, False, False, True])
+        # Exactly one target per household.
+        for h in [0, 1, 2]:
+            assert target[person_hh == h].sum() == 1
+
+
+class TestOverrideTargetEarnings:
+    def test_only_target_changes(self) -> None:
         baseline = np.array([50_000.0, 30_000.0, 80_000.0, 0.0])
-        is_head = np.array([True, False, True, False])
-        out = _override_head_earnings(baseline, is_head, 250_000.0)
+        is_target = np.array([False, False, True, False])
+        out = _override_target_earnings(baseline, is_target, 250_000.0)
 
-        assert out[0] == 250_000.0
         assert out[2] == 250_000.0
+        assert out[0] == 50_000.0
         assert out[1] == 30_000.0
         assert out[3] == 0.0
 
     def test_does_not_mutate_baseline(self) -> None:
         baseline = np.array([50_000.0, 30_000.0])
-        is_head = np.array([True, False])
+        is_target = np.array([True, False])
         before = baseline.copy()
-        _override_head_earnings(baseline, is_head, 1_000.0)
+        _override_target_earnings(baseline, is_target, 1_000.0)
         np.testing.assert_array_equal(baseline, before)
 
 
