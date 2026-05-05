@@ -1,0 +1,62 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "us_cliff_survey"
+version = "0.1.0"
+description = "Empirical survey of the largest income tax cliffs in the US, using PolicyEngine-US to sweep employment income across Enhanced CPS households up to $30M."
+readme = "README.md"
+requires-python = ">=3.13,<3.15"
+license = { text = "MIT" }
+authors = [{ name = "PolicyEngine", email = "hello@policyengine.org" }]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "License :: OSI Approved :: MIT License",
+]
+dependencies = [
+    "policyengine-us>=1.500.0",
+    "pandas>=2.0",
+    "numpy>=1.24",
+    "tqdm>=4.65",
+    "h5py>=3.0",
+    "matplotlib>=3.7",
+    "microdf-python>=1.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8",
+    "pytest-cov>=5",
+    "ruff>=0.5",
+    "ipykernel>=6",
+    "jupyterlab>=4",
+]
+
+[project.scripts]
+sweep-population = "us_cliff_survey.cli:sweep_population_cli"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.ruff]
+line-length = 88
+target-version = "py313"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "N", "UP", "B", "C4", "PIE", "SIM", "RUF"]
+ignore = [
+    "E501",      # line length handled by formatter
+    "RUF001",    # ambiguous unicode in strings (we use proper typography)
+    "RUF002",    # ambiguous unicode in docstrings (em dashes, math symbols)
+    "RUF003",    # ambiguous unicode in comments
+]
+
+[tool.pytest.ini_options]
+addopts = "-ra --strict-markers --cov=us_cliff_survey --cov-report=term-missing"
+testpaths = ["tests"]
+markers = [
+    "integration: tests that require policyengine-us and the Enhanced CPS dataset (slow)",
+]

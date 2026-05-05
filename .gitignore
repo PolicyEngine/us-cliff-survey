@@ -1,0 +1,33 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+
+# uv
+uv.lock
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Editors
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+
+# Data outputs
+results/*.parquet
+results/*.csv
+results/*.h5
+*.log
+
+# Cached datasets
+.policyengine/
+*.h5.tmp
