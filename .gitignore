@@ -22,10 +22,12 @@ uv.lock
 # OS
 .DS_Store
 
-# Data outputs
+# Data outputs — large/heavy artifacts only
+# (we keep small CSVs + figures in-repo so findings are reproducible)
 results/*.parquet
-results/*.csv
+results/*_curves.h5
 results/*.h5
+results/*.log
 *.log
 
 # Cached datasets
