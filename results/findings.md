@@ -1,103 +1,231 @@
-# Largest US income tax cliffs (PolicyEngine-US, ECPS sweep)
+# US cliff survey — findings
 
-Households swept (drop > $100 detected): 2,906 (of these, 459 have positive survey weight)
+Empirical and analytical investigation of the largest income-tax cliffs in
+the modeled US tax-and-transfer system, motivated by the question:
+**is New York's $25 million supplemental-tax recapture really the largest
+annual income-tax cliff in America?**
 
-Notes:
-- A 'cliff' here is a drop in household_net_income as the head's employment_income increases. Marginal rate > 1.0 means the drop exceeds the earnings step (a true cliff).
-- The override applies to **every tax unit head** in each household at each earnings level. Households with multiple tax units therefore see composite cliffs that sum across heads. The per-tax-unit cliff is approximately drop / number_of_heads.
+## Headline
 
-## Top 15 cliffs by absolute drop (any record)
+For realistic single tax filing units modeled in PolicyEngine-US:
 
-| state   |   cliff_earnings |   cliff_drop |   cliff_step |   cliff_marginal_rate |   household_weight |
-|:--------|-----------------:|-------------:|-------------:|----------------------:|-------------------:|
-| NY      |       25,001,000 |      747,272 |          999 |                   748 |                  0 |
-| NY      |       24,999,999 |      747,244 |          999 |                   748 |                  0 |
-| NY      |       25,001,000 |      597,820 |          999 |                   598 |                  0 |
-| NY      |       25,001,000 |      597,820 |          999 |                   598 |                  0 |
-| NY      |       25,001,000 |      597,820 |          999 |                   598 |                  0 |
-| NY      |       25,001,000 |      597,320 |          999 |                   598 |                  0 |
-| NY      |       25,001,000 |      597,320 |          999 |                   598 |                  0 |
-| NY      |       25,001,000 |      597,316 |          999 |                   598 |                  0 |
-| NY      |       25,001,000 |      448,364 |          999 |                   449 |                  0 |
-| NY      |       25,001,000 |      448,364 |          999 |                   449 |                  0 |
-| NY      |       25,001,000 |      448,364 |          999 |                   449 |                  0 |
-| NY      |       25,001,000 |      448,364 |          999 |                   449 |                  0 |
-| NY      |       25,001,000 |      448,364 |          999 |                   449 |                  0 |
-| NY      |       25,001,000 |      448,364 |          999 |                   449 |                  0 |
-| NY      |       25,001,000 |      448,364 |          999 |                   449 |                  0 |
+| Cliff | Per-tax-unit max | Mechanism |
+|-------|-----------------:|-----------|
+| **NY $25M recapture** | **$149,455** | Crossing $25M of NY AGI applies the 10.9% top rate to all NY taxable income. |
+| ACA PTC at 400% FPL (theoretical max) | $94,866 | 2 adults age 64 + 3 dependents age 20 in IL rating area 13 lose all marketplace subsidy. |
+| ACA PTC at 400% FPL (couple-only) | $65,638 | 2 adults age 64 in IL rating area 13. |
+| NJ Stay NJ | $35,984 | Property tax credit phase-out around $87.5K AGI. |
+| Federal/state benefit cliffs | $20K-$50K range | Medicaid loss, EITC phase-outs, state mandate-related cliffs. |
 
+NY's cliff is the largest per-tax-unit cliff for realistic household
+shapes. Among the most extreme tax-unit compositions present in real
+microdata (rare multi-adult tax units in ACS), the theoretical ACA cliff
+in IL area 13 reaches $190,929 — but those compositions represent a
+trivial weighted population.
 
-## Top 15 cliffs among weighted households
+## Methodology summary
 
-| state   |   cliff_earnings |   cliff_drop |   cliff_step |   cliff_marginal_rate |   household_weight |
-|:--------|-----------------:|-------------:|-------------:|----------------------:|-------------------:|
-| NY      |       25,001,000 |      448,324 |          999 |                   449 |                 58 |
-| NY      |       25,001,000 |      448,316 |          999 |                   449 |              1,111 |
-| NY      |       24,999,999 |      447,352 |          999 |                   448 |              3,014 |
-| NY      |       25,001,000 |      298,910 |          999 |                   299 |             68,931 |
-| NY      |       25,001,000 |      298,910 |          999 |                   299 |            247,016 |
-| NY      |       25,001,000 |      298,910 |          999 |                   299 |                134 |
-| NY      |       25,001,000 |      298,910 |          999 |                   299 |            106,945 |
-| NY      |       25,001,000 |      298,910 |          999 |                   299 |              1,775 |
-| NY      |       25,001,000 |      298,910 |          999 |                   299 |                291 |
-| NY      |       25,001,000 |      298,910 |          999 |                   299 |                154 |
-| NY      |       25,001,000 |      298,910 |          999 |                   299 |                275 |
-| NY      |       25,001,000 |      298,910 |          999 |                   299 |            160,433 |
-| NY      |       25,001,000 |      298,878 |          999 |                   299 |             57,348 |
-| NY      |       25,001,000 |      298,878 |          999 |                   299 |              1,570 |
-| NY      |       25,001,000 |      298,878 |          999 |                   299 |              6,583 |
+Three lines of evidence:
 
+1. **Empirical ECPS earnings sweep** — varied each Enhanced CPS tax unit's
+   primary earner from $0 to $30M and detected drops in
+   household_net_income.
+2. **Analytical ACA cliff** — derived the theoretical max PTC cliff at
+   400% FPL directly from PE-US parameter YAMLs (state rating area
+   premiums, age curves, family-tier multipliers, FPL by household size).
+3. **Microdata extreme-household scan** — for every tax unit in ECPS and
+   ACS, computed the theoretical ACA cliff if placed in the highest-cost
+   age-curve rating area.
 
-## Largest cliff per state (any record, top 15)
+## ECPS earnings sweep
 
-| state   |   cliff_earnings |   cliff_drop |   cliff_marginal_rate |
-|:--------|-----------------:|-------------:|----------------------:|
-| NY      |       25,001,000 |      747,272 |                   748 |
-| AZ      |            5,000 |       48,330 |                    10 |
-| CA      |           55,000 |       43,933 |                     9 |
-| MA      |           50,000 |       36,843 |                     7 |
-| IN      |           80,000 |       36,773 |                     7 |
-| NJ      |           65,000 |       35,984 |                     7 |
-| UT      |           40,000 |       34,609 |                     7 |
-| VA      |           25,000 |       33,960 |                     7 |
-| CO      |           50,000 |       33,842 |                     7 |
-| GA      |           25,000 |       32,095 |                     6 |
-| TX      |           50,000 |       31,872 |                     6 |
-| NM      |           65,000 |       31,540 |                     6 |
-| HI      |           15,000 |       26,040 |                     5 |
-| WI      |           95,000 |       24,314 |                     5 |
-| CT      |           15,000 |       23,848 |                     5 |
+### v1: every-head override (artifact diagnosed)
 
+The first sweep set every tax-unit head's `employment_income` to the
+swept level simultaneously. In multi-tax-unit households (~25% of ECPS),
+this drove every head across the $25M threshold at once and produced
+composite cliffs equal to N × per-tax-unit cliff. The headline drop was
+$747,272 for a 5-tax-unit household — N × $149,455.
 
-## Largest cliff per state among weighted households (top 15)
+### v2: single-target override (correct)
 
-| state   |   cliff_earnings |   cliff_drop |   cliff_marginal_rate |
-|:--------|-----------------:|-------------:|----------------------:|
-| NY      |       25,001,000 |      448,324 |                   449 |
-| NJ      |           65,000 |       35,984 |                     7 |
-| TX      |           50,000 |       31,872 |                     6 |
-| NM      |           65,000 |       31,540 |                     6 |
-| AZ      |           60,000 |       25,929 |                     5 |
-| CA      |          100,000 |       25,501 |                     5 |
-| WI      |           95,000 |       24,314 |                     5 |
-| UT      |           60,000 |       22,283 |                     4 |
-| WA      |           25,000 |       20,926 |                     4 |
-| OR      |           55,000 |       20,751 |                     4 |
-| HI      |           20,000 |       19,394 |                     4 |
-| IN      |           55,000 |       19,352 |                     4 |
-| FL      |           45,000 |       19,321 |                     4 |
-| MA      |           30,000 |       18,905 |                     4 |
-| SC      |           40,000 |       18,876 |                     4 |
+Refactored to identify a single target person per household (highest
+baseline earner; ties broken to tax-unit heads, then person index;
+fallback to first tax-unit head if all earnings are zero) and override
+only that person's earnings. Other household members — including other
+tax-unit heads — stay at their ECPS baseline.
 
+Results in `results/full_v2_cliffs.parquet`:
 
-## Population-weighted prevalence (weighted households only)
+- **Every NY household with crossing earnings shows cliff = $149,455** —
+  the clean per-tax-unit recapture cliff, matching the article's article
+  figure to within $500 (the $999 step adds a small marginal-tax
+  component).
+- 522 weighted ECPS households face a detected cliff of any size.
+- Largest non-NY cliff among weighted records: NJ Stay NJ at $35,984
+  (rate ≈ 7×).
 
-|   min_cliff_drop |   households |   weighted_count |   weighted_share |
-|-----------------:|-------------:|-----------------:|-----------------:|
-|         100.0000 |     459.0000 |  11,276,310.8258 |           1.0000 |
-|         500.0000 |     392.0000 |  10,106,475.5112 |           0.8963 |
-|       1,000.0000 |     350.0000 |   8,679,480.3193 |           0.7697 |
-|       5,000.0000 |     220.0000 |   5,690,259.9074 |           0.5046 |
-|      10,000.0000 |     181.0000 |   5,102,225.2455 |           0.4525 |
-|      50,000.0000 |      94.0000 |   3,690,281.7082 |           0.3273 |
-|     100,000.0000 |      94.0000 |   3,690,281.7082 |           0.3273 |
+### Per-state max cliff (v2)
+
+| State | Largest cliff (weighted) | Earnings | Marginal rate |
+|------:|-------------------------:|---------:|--------------:|
+| **NY** | **$149,455** | $25M | 150× |
+| NJ | $35,984 | $65K | 7× |
+| TX | $31,872 | $50K | 6× |
+| NM | $31,540 | $65K | 6× |
+| AZ | $25,929 | $60K | 5× |
+| CA | $25,501 | $100K | 5× |
+
+The non-NY cliffs are mostly state-Medicaid loss, ACA-related, or
+state-credit phase-outs — not state-income-tax cliffs.
+
+## Theoretical maximum ACA PTC cliff
+
+Independent derivation from PE-US parameter YAMLs (verified by Codex
+against the same sources):
+
+```
+2026 base monthly premium, IL rating area 13:        $789
+Default age curve, age 64:                           3.9216 multiplier
+Default age curve, age 20:                           1.268 multiplier
+Default age curve, age <15:                          1.0 multiplier
+2026 max child count (premium-rated):                3
+2026 final required-contribution rate at 400% FPL:   9.96%
+2026 5-person FPL (contiguous US):                   $38,680
+
+Annual SLCSP (2A age 64 + 3 kids age 20):
+  = 12 × 789 × (2 × 3.9216 + 3 × 1.268)
+  = $110,275.69
+
+Required contribution at 400% FPL:
+  = 0.0996 × 4 × 38,680
+  = $15,410.11
+
+Cliff = $110,275.69 − $15,410.11 = $94,866
+```
+
+For 2A age 64 with kids under 15 (multiplier 1.0), the cliff is
+$87,253. For 2 adults age 64 with no kids, $65,638.
+
+Geographic distribution by state (couple aged 64, no kids):
+
+- IL area 13: $65,638 (highest)
+- FL area 44: $63,003
+- WV area 5: $57,544
+- WY area 3: $53,591
+- AK area 2: $48,612
+- … 498 rating areas total; mean $27,553, median $26,908
+
+Choropleth in `results/aca_cliff_2026_2A64_choropleth.png` and per-state
+data in `aca_cliff_2026_*_state_max.csv`.
+
+NY and VT (family-tier rating, community pricing) show low cliffs
+because they don't age-rate premiums; a 64-year-old pays the same
+community rate as a 21-year-old. The cliff structure is also flatter
+because NY/VT family-tier multipliers cap at 2-adults regardless of
+household size.
+
+## Extreme-household scan against microdata
+
+For every tax unit in ECPS and ACS PUMS 2022, compute the theoretical
+ACA cliff that would face that exact composition if relocated to IL
+rating area 13.
+
+### Enhanced CPS (43,188 tax units)
+
+| n adults 21-64 | tax units | weighted households |
+|---------------:|----------:|--------------------:|
+| 0 | 1,684 | 5,610,337 |
+| 1 | 27,124 | 106,039,300 |
+| 2 | 13,722 | 38,983,680 |
+| 3 | 624 | 2,145,317 |
+| **4** | **34** | **143,650** |
+
+Top extreme cliff in ECPS: **$92,020** for 3 adults (61, 55, 23) + 3
+dependents (19, 19, 19) — weighted population of 4,661 households.
+Below the synthetic max of $94,866 because no actual ECPS tax unit has
+the exact "2 adults age 64 + 3 dependents age 20" composition.
+
+### ACS PUMS 2022 with PR #890 tax-unit construction
+
+[PolicyEngine/policyengine-us-data#890](https://github.com/PolicyEngine/policyengine-us-data/pull/890)
+ported the CPS qualifying-child / qualifying-relative algorithm to ACS
+(file by [issue #888](https://github.com/PolicyEngine/policyengine-us-data/issues/888)
+spawned by this work). Before #890, ACS treated each housing unit as a
+single tax unit, producing 20-adult "tax units" and a meaningless
+$408,000 maximum cliff. After #890:
+
+| n adults 21-64 | tax units | weighted households |
+|---------------:|----------:|--------------------:|
+| 0 | 102,041 | 5,909,155 |
+| 1 | 901,023 | 89,700,445 |
+| 2 | 438,352 | 43,386,675 |
+| 3 | 18,310 | 1,792,436 |
+| 4 | 1,013 | 101,441 |
+| 5 | 37 | 3,861 |
+| 6 | 3 | 320 |
+| **11** | **1** | **45** |
+
+Top extreme cliff in ACS (post-#890): **$190,929** for 11 adults aged
+62, 62, 47, 46, 44, … with 0 kids — weighted population 45 households.
+The next-largest is $112,378 for 5 adults aged 58, 56, 54, 50, 49.
+
+The 11-adult tax unit is a real ACS record with a household composition
+that the construction algorithm assigns to one filing unit (likely a
+multi-generation household where many adults pass the qualifying-relative
+test under one filer). Its weighted population is 45 — a vanishingly
+small share of the US household distribution.
+
+### Bottom line
+
+NY's $149,455 per-tax-unit recapture cliff exceeds the realistic ACA
+cliff ceiling for the overwhelming majority of household shapes. Two
+caveats:
+
+1. ACS contains rare tax-unit compositions whose theoretical ACA cliff
+   exceeds NY's. These represent a trivial population (≤200 weighted
+   households nationally for >$150K cliffs).
+2. The ACA cliff applies to vastly more households — anywhere from
+   millions of households near 400% FPL nationwide. NY's cliff applies
+   to a few hundred filers crossing $25M of NY AGI in any given year.
+
+For a defensible "largest income tax cliff in America" claim:
+
+> New York's $25 million recapture is the largest per-tax-unit
+> income-tax cliff in PolicyEngine-US for realistic household
+> compositions. The ACA premium-tax-credit cliff at 400% FPL is the
+> next-largest, and affects vastly more households.
+
+## Reproducing the analysis
+
+```bash
+# Empirical ECPS sweep (~50 min)
+uv run sweep-population --output results/full_v2
+
+# Per-household cliff summary
+uv run cliff-analyze --prefix results/full_v2 --output results/findings.md
+
+# Theoretical max ACA cliff
+uv run max-aca-cliff --year 2026 --top 10
+
+# State choropleth + per-rating-area CSVs
+uv run aca-cliff-map --year 2026 --composition 2A64
+uv run aca-cliff-map --year 2026 --composition 2A64+3K20
+
+# Extreme-household scan against any PE-US-data h5
+uv run extreme-household --microdata path/to/enhanced_cps_2024.h5
+uv run extreme-household --microdata path/to/acs_2022.h5
+```
+
+## Caveats
+
+- Coverage is limited to mechanisms PolicyEngine-US models. State or
+  local provisions not yet implemented are missed.
+- The empirical ECPS sweep uses 2026 parameters and a static (no
+  behavioural-response) model.
+- Float32 precision in the simulation moves NY's cliff detection from
+  the exact $25M threshold to the bracket [$25,000,001, $25,001,000];
+  the cliff size is preserved.
+- ACS extremes depend on PR #890's tax-unit construction algorithm,
+  which uses heuristics for spouse and parent linkages that ACS does
+  not provide directly. See issue #888 for the methodology trade-offs.

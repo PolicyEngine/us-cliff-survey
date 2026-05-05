@@ -45,6 +45,7 @@ sweep-population = "us_cliff_survey.cli:sweep_population_cli"
 cliff-analyze = "us_cliff_survey.cli:analyze_cli"
 max-aca-cliff = "us_cliff_survey.cli:max_aca_cliff_cli"
 aca-cliff-map = "us_cliff_survey.cli:aca_cliff_map_cli"
+extreme-household = "us_cliff_survey.cli:extreme_household_cli"
 
 [tool.setuptools.packages.find]
 where = ["src"]

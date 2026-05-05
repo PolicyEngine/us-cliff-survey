@@ -23,6 +23,11 @@ from .ecps_sweep import (
     run_ecps_sweep,
     save_outputs,
 )
+from .extreme_household import (
+    adult_count_distribution,
+    evaluate_microdata,
+    to_dataframe,
+)
 
 
 def _setup_logging() -> None:
@@ -199,3 +204,57 @@ def aca_cliff_map_cli() -> None:
         output_png=png_path,
     )
     logging.info("Wrote %s and %s", html_path, png_path)
+
+
+def extreme_household_cli() -> None:
+    """Find the most extreme tax unit in a microdata h5 file."""
+    _setup_logging()
+
+    p = argparse.ArgumentParser(
+        description=(
+            "Identify the most cliff-loaded tax-unit composition in "
+            "PolicyEngine microdata. Each tax unit's theoretical ACA "
+            "cliff is computed at IL rating area 13 (the most premium-"
+            "expensive age-curve rating area)."
+        )
+    )
+    p.add_argument(
+        "--microdata",
+        type=Path,
+        required=True,
+        help="Path to a PE-US-data h5 file (e.g. enhanced_cps_2024.h5 or acs_2022.h5).",
+    )
+    p.add_argument(
+        "--output-dir",
+        type=Path,
+        default=Path("results"),
+        help="Where to write the per-tax-unit CSV and adult-count distribution.",
+    )
+    p.add_argument("--top", type=int, default=15)
+    args = p.parse_args()
+
+    rows = evaluate_microdata(args.microdata)
+
+    args.output_dir.mkdir(parents=True, exist_ok=True)
+    df = to_dataframe(rows)
+    out_csv = args.output_dir / f"extreme_household_{args.microdata.stem}.csv"
+    df.head(1000).to_csv(out_csv, index=False)
+    logging.info("Wrote top 1000 to %s", out_csv)
+
+    dist = adult_count_distribution(rows)
+    dist_csv = (
+        args.output_dir
+        / f"extreme_household_{args.microdata.stem}_adult_distribution.csv"
+    )
+    dist.to_csv(dist_csv, index=False)
+    logging.info("Wrote adult-count distribution to %s", dist_csv)
+
+    print(f"\nTax units evaluated: {len(rows):,}")
+    print(f"\nAdult-21-64 count distribution:\n{dist.to_string(index=False)}")
+    print(f"\nTop {args.top} most extreme tax units (cliff at IL area 13):")
+    for r in rows[: args.top]:
+        ages = r.adult_ages[:5]
+        print(
+            f"  cliff=${r.cliff:>10,.0f}  adults={r.n_adults_21_64:>2} {ages}  "
+            f"kids_counted={r.kid_ages_counted}  weight={r.household_weight:>9,.0f}"
+        )
