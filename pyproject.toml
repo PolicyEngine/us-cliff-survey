@@ -26,6 +26,7 @@ dependencies = [
     "microdf-python>=1.0",
     "tabulate>=0.9",
     "pyarrow>=15",
+    "pyyaml>=6",
 ]
 
 [project.optional-dependencies]
@@ -40,6 +41,7 @@ dev = [
 [project.scripts]
 sweep-population = "us_cliff_survey.cli:sweep_population_cli"
 cliff-analyze = "us_cliff_survey.cli:analyze_cli"
+max-aca-cliff = "us_cliff_survey.cli:max_aca_cliff_cli"
 
 [tool.setuptools.packages.find]
 where = ["src"]
