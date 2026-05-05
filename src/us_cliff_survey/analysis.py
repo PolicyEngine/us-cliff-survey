@@ -102,25 +102,43 @@ def render_findings(
     title: str = "Largest US income tax cliffs (PolicyEngine-US, ECPS sweep)",
 ) -> None:
     """Write a markdown summary to disk."""
+    weighted = cliffs[cliffs["household_weight"] > 0]
     top = top_cliffs_by_size(cliffs, n=15)
+    top_weighted = top_cliffs_by_size(weighted, n=15)
     by_state = cliffs_by_state(cliffs, n_top=15)
-    prevalence = cliff_prevalence(cliffs)
+    by_state_weighted = cliffs_by_state(weighted, n_top=15)
+    prevalence = cliff_prevalence(weighted)
 
     lines: list[str] = []
     lines.append(f"# {title}\n")
-    lines.append(f"Households swept: {len(cliffs):,}")
     lines.append(
-        f"Households with any detected cliff (drop > $100): "
-        f"{(cliffs['cliff_drop'] > 100).sum():,}\n"
+        f"Households swept (drop > $100 detected): {len(cliffs):,} "
+        f"(of these, {len(weighted):,} have positive survey weight)\n"
+    )
+    lines.append(
+        "Notes:\n"
+        "- A 'cliff' here is a drop in household_net_income as the head's "
+        "employment_income increases. Marginal rate > 1.0 means the drop "
+        "exceeds the earnings step (a true cliff).\n"
+        "- The override applies to **every tax unit head** in each "
+        "household at each earnings level. Households with multiple tax "
+        "units therefore see composite cliffs that sum across heads. The "
+        "per-tax-unit cliff is approximately drop / number_of_heads.\n"
     )
 
-    lines.append("## Top 15 cliffs by absolute drop\n")
+    lines.append("## Top 15 cliffs by absolute drop (any record)\n")
     lines.append(top.to_markdown(index=False, floatfmt=",.0f"))
 
-    lines.append("\n\n## Largest cliff per state (top 15 states)\n")
+    lines.append("\n\n## Top 15 cliffs among weighted households\n")
+    lines.append(top_weighted.to_markdown(index=False, floatfmt=",.0f"))
+
+    lines.append("\n\n## Largest cliff per state (any record, top 15)\n")
     lines.append(by_state.to_markdown(index=False, floatfmt=",.0f"))
 
-    lines.append("\n\n## Population-weighted prevalence\n")
+    lines.append("\n\n## Largest cliff per state among weighted households (top 15)\n")
+    lines.append(by_state_weighted.to_markdown(index=False, floatfmt=",.0f"))
+
+    lines.append("\n\n## Population-weighted prevalence (weighted households only)\n")
     lines.append(prevalence.to_markdown(index=False, floatfmt=",.4f"))
 
     Path(output_path).write_text("\n".join(lines), encoding="utf-8")
