@@ -31,3 +31,4 @@ results/*.h5
 # Cached datasets
 .policyengine/
 *.h5.tmp
+.coverage
