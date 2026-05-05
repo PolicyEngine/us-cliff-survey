@@ -308,3 +308,66 @@ def all_cliffs(
             )
     rows.sort(key=lambda r: r.cliff, reverse=True)
     return rows
+
+
+def all_rating_area_cliffs(
+    composition: HouseholdComposition,
+    composition_label: str,
+    target: date = date(2026, 1, 1),
+    final_rate_400_fpl: float = DEFAULT_2026_FINAL_RATE_400_FPL,
+    params_root: Path = DEFAULT_PE_US_PARAMS,
+) -> list[CliffResult]:
+    """One cliff per (state, rating_area) at `target` for a fixed household.
+
+    Use to map the geographic distribution of ACA cliff exposure for a
+    specific archetype (e.g. couple aged 64).
+    """
+    params = load_pe_us_params(params_root)
+    rows: list[CliffResult] = []
+    for state, ratings in params["rating"].items():
+        if state in ("description", "metadata") or not isinstance(ratings, dict):
+            continue
+        for ra_id, year_vals in ratings.items():
+            if not isinstance(year_vals, dict):
+                continue
+            base = _value_at(year_vals, target)
+            if base is None:
+                continue
+            rows.append(
+                cliff_for(
+                    state=state,
+                    rating_area=ra_id,
+                    base_monthly=base,
+                    composition=composition,
+                    composition_label=composition_label,
+                    age_curves=params["age_curves"],
+                    family_tier=params["family_tier"],
+                    fpg=params["fpg"],
+                    final_rate_400_fpl=final_rate_400_fpl,
+                    target=target,
+                )
+            )
+    rows.sort(key=lambda r: r.cliff, reverse=True)
+    return rows
+
+
+def state_max_cliff(
+    composition: HouseholdComposition,
+    composition_label: str,
+    target: date = date(2026, 1, 1),
+    final_rate_400_fpl: float = DEFAULT_2026_FINAL_RATE_400_FPL,
+    params_root: Path = DEFAULT_PE_US_PARAMS,
+) -> dict[str, CliffResult]:
+    """Return {state_code: highest-cliff CliffResult across that state's rating areas}."""
+    rows = all_rating_area_cliffs(
+        composition,
+        composition_label,
+        target=target,
+        final_rate_400_fpl=final_rate_400_fpl,
+        params_root=params_root,
+    )
+    out: dict[str, CliffResult] = {}
+    for r in rows:
+        if r.state not in out or r.cliff > out[r.state].cliff:
+            out[r.state] = r
+    return out

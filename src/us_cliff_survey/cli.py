@@ -9,9 +9,15 @@ from pathlib import Path
 
 import numpy as np
 
+from .aca_cliff import HouseholdComposition
 from .aca_cliff import all_cliffs as all_aca_cliffs
 from .aca_cliff import maximum_cliff as max_aca_cliff
 from .analysis import load_cliffs, render_findings
+from .cliff_map import (
+    rating_area_dataframe,
+    render_choropleth,
+    state_max_dataframe,
+)
 from .ecps_sweep import (
     DEFAULT_EARNINGS_LEVELS,
     run_ecps_sweep,
@@ -127,3 +133,69 @@ def max_aca_cliff_cli() -> None:
             f"  {r.state:>2} area {r.rating_area:>2} "
             f"{r.composition_label:>10}  cliff=${r.cliff:>9,.0f}"
         )
+
+
+def aca_cliff_map_cli() -> None:
+    """Render an ACA cliff choropleth + per-rating-area CSV."""
+    _setup_logging()
+    from datetime import date
+
+    p = argparse.ArgumentParser(
+        description="Map maximum ACA PTC cliff by state and rating area."
+    )
+    p.add_argument("--year", type=int, default=2026)
+    p.add_argument(
+        "--composition",
+        choices=["2A64", "2A64+3K20", "2A64+3K14", "1A64"],
+        default="2A64",
+        help="Household composition to evaluate (default 2 adults age 64).",
+    )
+    p.add_argument(
+        "--output-dir",
+        type=Path,
+        default=Path("results"),
+        help="Where to write rating_areas.csv, state_max.csv, and the choropleth.",
+    )
+    args = p.parse_args()
+
+    target = date(args.year, 1, 1)
+
+    if args.composition == "2A64":
+        comp = HouseholdComposition(2, ())
+    elif args.composition == "1A64":
+        comp = HouseholdComposition(1, ())
+    elif args.composition == "2A64+3K14":
+        comp = HouseholdComposition(2, (14, 14, 14))
+    elif args.composition == "2A64+3K20":
+        comp = HouseholdComposition(2, (20, 20, 20))
+    else:
+        raise ValueError(f"unknown composition {args.composition}")
+
+    args.output_dir.mkdir(parents=True, exist_ok=True)
+
+    ra_df = rating_area_dataframe(comp, args.composition, target=target)
+    ra_csv = (
+        args.output_dir / f"aca_cliff_{args.year}_{args.composition}_rating_areas.csv"
+    )
+    ra_df.to_csv(ra_csv, index=False)
+    logging.info("Wrote %s (%d rows)", ra_csv, len(ra_df))
+
+    sm_df = state_max_dataframe(comp, args.composition, target=target)
+    sm_csv = args.output_dir / f"aca_cliff_{args.year}_{args.composition}_state_max.csv"
+    sm_df.to_csv(sm_csv, index=False)
+    logging.info("Wrote %s (%d rows)", sm_csv, len(sm_df))
+
+    html_path = (
+        args.output_dir / f"aca_cliff_{args.year}_{args.composition}_choropleth.html"
+    )
+    png_path = (
+        args.output_dir / f"aca_cliff_{args.year}_{args.composition}_choropleth.png"
+    )
+    render_choropleth(
+        sm_df,
+        composition_label=args.composition,
+        year=args.year,
+        output_html=html_path,
+        output_png=png_path,
+    )
+    logging.info("Wrote %s and %s", html_path, png_path)
