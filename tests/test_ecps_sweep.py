@@ -34,7 +34,6 @@ class _FakeMicrosim:
     n_persons: int = 6
     n_households: int = 3
     states: tuple[str, ...] = ("CA", "NY", "TX")
-    filing_statuses: tuple[str, ...] = ("SINGLE", "JOINT", "HEAD_OF_HOUSEHOLD")
 
     def __post_init__(self) -> None:
         self._head_earnings = 0.0
@@ -51,10 +50,6 @@ class _FakeMicrosim:
             return np.full(self.n_households, 100.0)
         if var == "state_code":
             return np.array(self.states)
-        if var == "filing_status":
-            return np.array(self.filing_statuses)
-        if var == "tax_unit_dependents":
-            return np.zeros(self.n_households, dtype=int)
         if var == "household_net_income":
             earnings = self._head_earnings
             base = earnings * 0.7  # 70% net of head's earnings
@@ -107,8 +102,6 @@ class TestRunEcpsSweep:
         assert result.income_tax.shape == (3, 4)
         assert result.household_weight.shape == (3,)
         assert result.state_code.shape == (3,)
-        assert result.filing_status.shape == (3,)
-        assert result.n_dependents.shape == (3,)
 
     @patch("policyengine_us.Microsimulation", new=_FakeMicrosim)
     def test_different_earnings_produce_different_curves(self) -> None:
@@ -142,8 +135,6 @@ class TestSweepOutputCliffs:
             income_tax=np.zeros_like(net_income),
             household_weight=np.full(n_hh, 1.0),
             state_code=np.array(["NY"] * n_hh),
-            filing_status=np.array(["SINGLE"] * n_hh),
-            n_dependents=np.zeros(n_hh, dtype=int),
         )
 
     def test_no_cliffs_returns_empty_df(self) -> None:
@@ -159,8 +150,6 @@ class TestSweepOutputCliffs:
             "household_index",
             "household_weight",
             "state",
-            "filing_status",
-            "n_dependents",
             "cliff_earnings",
             "cliff_step",
             "cliff_drop",

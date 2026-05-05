@@ -54,15 +54,22 @@ DEFAULT_EARNINGS_LEVELS = np.unique(
 
 @dataclass
 class SweepOutput:
-    """Result of an ECPS sweep."""
+    """Result of an ECPS sweep, indexed by ECPS household.
+
+    Filing status and dependent count live at the tax-unit entity in
+    PolicyEngine-US, not the household, and roughly 25 percent of ECPS
+    households contain more than one tax unit. Mapping them to the
+    household requires picking a representative (typically the first
+    tax unit). v1 omits these fields from the in-flight sweep output;
+    they can be joined post-sweep from a baseline Microsimulation when
+    needed.
+    """
 
     earnings_levels: np.ndarray  # shape (E,)
     net_income: np.ndarray  # shape (H, E)
     income_tax: np.ndarray  # shape (H, E) — federal+state income tax
     household_weight: np.ndarray  # shape (H,)
     state_code: np.ndarray  # shape (H,) — string
-    filing_status: np.ndarray  # shape (H,) — string
-    n_dependents: np.ndarray  # shape (H,) — int
 
     def cliffs(self, min_drop: float = 100.0) -> pd.DataFrame:
         """Return one row per detected cliff (largest per household)."""
@@ -78,8 +85,6 @@ class SweepOutput:
                     "household_index": h,
                     "household_weight": float(self.household_weight[h]),
                     "state": str(self.state_code[h]),
-                    "filing_status": str(self.filing_status[h]),
-                    "n_dependents": int(self.n_dependents[h]),
                     "cliff_earnings": top.earnings_at_cliff,
                     "cliff_step": top.earnings_step,
                     "cliff_drop": top.net_income_drop,
@@ -110,24 +115,15 @@ def run_ecps_sweep(
     if earnings_levels is None:
         earnings_levels = DEFAULT_EARNINGS_LEVELS
 
-    # Baseline once — to read demographics and locate heads.
+    # Baseline once — to read demographics and locate heads. state_code
+    # and household_weight are natively household-level so we omit map_to.
     baseline = Microsimulation()
     baseline_emp = np.asarray(baseline.calculate("employment_income", period=year))
     is_head = np.asarray(baseline.calculate("is_tax_unit_head", period=year)).astype(
         bool
     )
-    hh_weight = np.asarray(
-        baseline.calculate("household_weight", period=year, map_to="household")
-    )
-    state_code = np.asarray(
-        baseline.calculate("state_code", period=year, map_to="household")
-    )
-    filing_status = np.asarray(
-        baseline.calculate("filing_status", period=year, map_to="household")
-    )
-    n_dep = np.asarray(
-        baseline.calculate("tax_unit_dependents", period=year, map_to="household")
-    )
+    hh_weight = np.asarray(baseline.calculate("household_weight", period=year))
+    state_code = np.asarray(baseline.calculate("state_code", period=year))
 
     n_hh = len(hh_weight)
     n_levels = len(earnings_levels)
@@ -164,8 +160,6 @@ def run_ecps_sweep(
         income_tax=income_tax_matrix,
         household_weight=hh_weight,
         state_code=state_code,
-        filing_status=filing_status,
-        n_dependents=n_dep.astype(int),
     )
 
 
@@ -183,11 +177,6 @@ def save_outputs(result: SweepOutput, prefix: str) -> None:
             "state_code",
             data=np.array(result.state_code, dtype="S2"),
         )
-        f.create_dataset(
-            "filing_status",
-            data=np.array(result.filing_status, dtype="S20"),
-        )
-        f.create_dataset("n_dependents", data=result.n_dependents)
 
     cliffs_df = result.cliffs(min_drop=100.0)
     cliffs_df.to_parquet(f"{prefix}_cliffs.parquet", index=False)

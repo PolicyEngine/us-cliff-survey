@@ -27,8 +27,6 @@ class TestSweepPopulationCli:
                 income_tax=np.zeros((1, len(earnings_levels)), dtype=np.float32),
                 household_weight=np.array([1.0]),
                 state_code=np.array(["NY"]),
-                filing_status=np.array(["SINGLE"]),
-                n_dependents=np.array([0]),
             )
 
         monkeypatch.setattr(ecps_sweep, "run_ecps_sweep", fake_run)
@@ -65,8 +63,6 @@ class TestSweepPopulationCli:
                 income_tax=np.zeros((1, len(earnings_levels)), dtype=np.float32),
                 household_weight=np.array([1.0]),
                 state_code=np.array(["NY"]),
-                filing_status=np.array(["SINGLE"]),
-                n_dependents=np.array([0]),
             )
 
         monkeypatch.setattr(ecps_sweep, "run_ecps_sweep", fake_run)

@@ -24,6 +24,8 @@ dependencies = [
     "h5py>=3.0",
     "matplotlib>=3.7",
     "microdf-python>=1.0",
+    "tabulate>=0.9",
+    "pyarrow>=15",
 ]
 
 [project.optional-dependencies]
