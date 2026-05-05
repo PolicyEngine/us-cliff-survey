@@ -37,16 +37,16 @@ log = logging.getLogger(__name__)
 DEFAULT_EARNINGS_LEVELS = np.unique(
     np.concatenate(
         [
-            # dense at low/middle incomes where most cliffs live
-            np.arange(0, 200_000, 1_000, dtype=float),
-            # mid-income strata
-            np.arange(200_000, 1_000_000, 10_000, dtype=float),
-            # high income
-            np.arange(1_000_000, 10_000_000, 100_000, dtype=float),
-            # very high — ensure we hit $25M and bracket it
-            np.arange(10_000_000, 25_000_000, 250_000, dtype=float),
-            np.arange(24_900_000, 25_100_000, 1_000, dtype=float),
-            np.arange(25_100_000, 30_000_001, 250_000, dtype=float),
+            # Dense at low/middle incomes where most benefit/credit cliffs live.
+            np.arange(0, 100_000, 5_000, dtype=float),
+            # Mid-income strata (SALT, AMT, NIIT thresholds).
+            np.arange(100_000, 500_000, 25_000, dtype=float),
+            # High income (millionaire surtaxes, recapture phase-ins).
+            np.arange(500_000, 5_000_000, 250_000, dtype=float),
+            # Very high.
+            np.arange(5_000_000, 25_000_000, 5_000_000, dtype=float),
+            # Bracket NY's $25M recapture: just below, just above.
+            np.array([24_999_000, 24_999_999, 25_000_001, 25_001_000, 30_000_000]),
         ]
     )
 )
